@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/.da6cf995d427f6a354819d2b2cb1fb213a067feb-audit.json",
+    "files": [
+        {
+            "date": 1777617387761,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/error-2026-05-01.log",
+            "hash": "7d1e2985ea36c20409c1ad8eb43f0b4850559bb08e1c9245dd6292ba56a18471"
+        }
+    ],
+    "hashType": "sha256"
+}

@@ -1,0 +1,85 @@
+{
+    "keep": {
+        "days": false,
+        "amount": 15
+    },
+    "auditLog": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/.b240f30af0abc274f3138f87349b3d415f29cd9e-audit.json",
+    "files": [
+        {
+            "date": 1777631463267,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-31.log",
+            "hash": "f8a34714c721fe954c70b4e1d61bf559c434a2592d0047e17f9b9f523323892b"
+        },
+        {
+            "date": 1777631540783,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-32.log",
+            "hash": "904ee240fbd3e95b340c2d500ddd486eefb4a753f6321ac7eb49c878cdbdd0d3"
+        },
+        {
+            "date": 1777631584538,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-33.log",
+            "hash": "6f20471a8dac31dd75d38fed672f2c694d7b6695947cc77a393ab5d5fffe9c5b"
+        },
+        {
+            "date": 1777631680835,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-34.log",
+            "hash": "7df2e05b16a2f7837ca13b61780aa1fcfe339d4cad7853d84a0d503a2a4036da"
+        },
+        {
+            "date": 1777631761929,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-36.log",
+            "hash": "f3f9be7aa903a077dec7666cd1dcb680041fe18025a13f661527a3d4ab4876f0"
+        },
+        {
+            "date": 1777631920916,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-38.log",
+            "hash": "aa4a5d4ee0af76cc809c5d8123600737734b6f6d7031e4a898a89362f2138c55"
+        },
+        {
+            "date": 1777632009256,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-40.log",
+            "hash": "118b58c3f86a1dfc3759eb877eb0b40071a500d57854b9486d41449a57218b00"
+        },
+        {
+            "date": 1777632738900,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-52.log",
+            "hash": "42cc7ef14324b736bf804ba61612c63b801b7e789c2f5ae0f4a5e5a5c284c354"
+        },
+        {
+            "date": 1777632871240,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-54.log",
+            "hash": "0b5b0fd897118225e65daac9c37c04cd2e98c1afca348b4724a38811d8e18564"
+        },
+        {
+            "date": 1777633067349,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-57.log",
+            "hash": "83c41d4d0dcd05b7d5ba68660e432db9c3b12b68c87675827ccec2d861c7988e"
+        },
+        {
+            "date": 1777633105272,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-58.log",
+            "hash": "942e5e0f15d8df61581514f32582665e68590b95e6af001079d573c8dcd1fbed"
+        },
+        {
+            "date": 1777633143177,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-10-59.log",
+            "hash": "bc065baf891a042fb8722fe3fa01f9505c1dbae769a29e615a671b6ac7855b8c"
+        },
+        {
+            "date": 1777633657162,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-11-07.log",
+            "hash": "84a53da71e8d86cd423a06e15e51049c507fb1450f9a0f4ed0fcb30443658371"
+        },
+        {
+            "date": 1777633709805,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-11-08.log",
+            "hash": "ddde7933d5f9c03f5b02c3dbf8654567ad3e38d0e7b6f064bb5cda87d3d3799f"
+        },
+        {
+            "date": 1777633747074,
+            "name": "/Users/sheabali/Project/CareerAI/career_ai_backend/logs/info-2026-05-01-11-09.log",
+            "hash": "64818a73536fd980801536633844b3d3984bb7b04b1054ea69f416cc74c76cc0"
+        }
+    ],
+    "hashType": "sha256"
+}

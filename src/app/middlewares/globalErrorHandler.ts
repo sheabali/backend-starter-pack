@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
-import { TokenExpiredError } from "jsonwebtoken";
+import { TokenExpiredError, JsonWebTokenError } from "jsonwebtoken";
 import multer from "multer";
 import { ZodError } from "zod";
 import config from "../../config";
@@ -179,6 +179,15 @@ const GlobalErrorHandler = (
       {
         path: "token",
         message: `Token expired at ${error.expiredAt.toISOString()}`,
+      },
+    ];
+  } else if (error instanceof JsonWebTokenError) {
+    statusCode = 401;
+    message = "Invalid token. Please log in again.";
+    errorMessages = [
+      {
+        path: "token",
+        message: "Invalid token. Please log in again.",
       },
     ];
   }

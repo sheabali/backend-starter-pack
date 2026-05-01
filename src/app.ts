@@ -109,6 +109,8 @@ app.get("/api/v1/health", async (req: Request, res: Response) => {
   }
 });
 
+import GlobalErrorHandler from "./app/middlewares/globalErrorHandler";
+
 // 404 Not Found handler
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.status(404).json({
@@ -120,5 +122,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     },
   });
 });
+
+// Global Error Handler
+app.use(GlobalErrorHandler);
 
 export default app;
