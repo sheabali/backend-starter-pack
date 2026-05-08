@@ -34,6 +34,10 @@ const registerUser = async (payload: any) => {
     },
   });
 
+  // Log activity
+  const { AnalyticsService } = require("../../../services/analytics.service");
+  AnalyticsService.logActivity(result.id, "ACCOUNT_CREATED", "New user registered");
+
   return result;
 };
 
@@ -78,6 +82,10 @@ const loginUser = async (payload: any) => {
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
   });
+
+  // Log activity
+  const { AnalyticsService } = require("../../../services/analytics.service");
+  AnalyticsService.logActivity(user.id, "LOGIN", "User logged in");
 
   return {
     accessToken,

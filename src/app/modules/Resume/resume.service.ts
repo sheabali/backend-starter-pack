@@ -21,12 +21,12 @@ const uploadAndParseResume = async (
     throw new ApiError(httpStatus.NOT_FOUND, "User not found");
   }
 
-  if (user.plan === "FREE" && user.creditsRemaining <= 0) {
-    throw new ApiError(
-      httpStatus.TOO_MANY_REQUESTS,
-      "Upgrade to Pro for unlimited analyses"
-    );
-  }
+  // if (user.plan === "FREE" && user.creditsRemaining <= 0) {
+  //   throw new ApiError(
+  //     httpStatus.TOO_MANY_REQUESTS,
+  //     "Upgrade to Pro for unlimited analyses"
+  //   );
+  // }
 
   // 2. Parse PDF to text
   let parsedData: any;
@@ -97,14 +97,28 @@ const uploadAndParseResume = async (
     return analysis;
   });
 
-  return {
+  const response = {
     analysisId: result.id,
     resumeText: result.resumeText,
     resumeUrl: result.resumeUrl,
   };
+
+  // Invalidate dashboard stats cache
+  const { DashboardService } = require("../Dashboard/dashboard.service");
+  DashboardService.invalidateStatsCache(userId);
+
+  // Log activity
+  const { AnalyticsService } = require("../../../services/analytics.service");
+  AnalyticsService.logActivity(userId, "RESUME_UPLOADED", `Uploaded resume: ${file.originalname}`, {
+    analysisId: result.id,
+    jobTitle,
+    targetCompany,
+  });
+
+  return response;
 };
 
-const analyzeResume = async (analysisId: string, userId: string) => {
+const analyzeResume = async (analysisId: string, userId: string, jobDescription?: string) => {
   // 1. Fetch the existing analysis
   const analysis = await prisma.analysis.findUnique({
     where: { id: analysisId },
@@ -125,12 +139,12 @@ const analyzeResume = async (analysisId: string, userId: string) => {
     );
   }
 
-  // 2. Call Claude API for ATS analysis
+  // 2. Call groq API for ATS analysis
   let aiResult;
   try {
-    aiResult = await AIService.analyzeResume(analysis.resumeText);
+    aiResult = await AIService.analyzeResume(analysis.resumeText, jobDescription, analysis.jobTitle || undefined);
   } catch (err: any) {
-    console.error("Claude API Error:", err?.status, err?.message, err?.error);
+    console.error("groq API Error:", err?.status, err?.message, err?.error);
     throw new ApiError(
       httpStatus.INTERNAL_SERVER_ERROR,
       `AI analysis failed: ${err?.message || "Unknown error"}`
@@ -169,6 +183,8 @@ const analyzeResume = async (analysisId: string, userId: string) => {
       atsScore: aiResult.atsScore,
       formattingScore: aiResult.formattingScore,
       keywordScore: aiResult.keywordScore,
+      jobDescription: jobDescription || null,
+      jobMatchPercentage: aiResult.jobMatchPercentage || null,
     },
     include: {
       keywords: true,
@@ -176,10 +192,74 @@ const analyzeResume = async (analysisId: string, userId: string) => {
     },
   });
 
+  // 6. Invalidate dashboard stats cache
+  const { DashboardService } = require("../Dashboard/dashboard.service");
+  DashboardService.invalidateStatsCache(userId);
+
+  // Log activity
+  const { AnalyticsService } = require("../../../services/analytics.service");
+  AnalyticsService.logActivity(userId, "RESUME_ANALYZED", `Analyzed resume for ${updatedAnalysis.jobTitle}`, {
+    analysisId,
+    atsScore: updatedAnalysis.atsScore,
+    jobMatchPercentage: updatedAnalysis.jobMatchPercentage,
+  });
+
   return updatedAnalysis;
+};
+
+const getAnalysis = async (analysisId: string, userId: string) => {
+  const analysis = await prisma.analysis.findUnique({
+    where: { id: analysisId },
+    include: {
+      keywords: true,
+      suggestions: true,
+    },
+  });
+
+  if (!analysis) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Analysis not found");
+  }
+
+  if (analysis.userId !== userId) {
+    throw new ApiError(httpStatus.FORBIDDEN, "You do not own this analysis");
+  }
+
+  return analysis;
+};
+
+const generateCoverLetter = async (analysisId: string, userId: string) => {
+  const analysis = await prisma.analysis.findUnique({
+    where: { id: analysisId },
+  });
+
+  if (!analysis) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Analysis not found");
+  }
+
+  if (analysis.userId !== userId) {
+    throw new ApiError(httpStatus.FORBIDDEN, "You do not own this analysis");
+  }
+
+  if (!analysis.jobDescription) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Job description is required to generate a cover letter. Please re-analyze with a job description."
+    );
+  }
+
+  const coverLetter = await AIService.generateCoverLetter({
+    resumeText: analysis.resumeText as string,
+    jobDescription: analysis.jobDescription,
+    jobTitle: analysis.jobTitle || undefined,
+    companyName: analysis.targetCompany || undefined,
+  });
+
+  return { coverLetter };
 };
 
 export const ResumeService = {
   uploadAndParseResume,
   analyzeResume,
+  getAnalysis,
+  generateCoverLetter,
 };

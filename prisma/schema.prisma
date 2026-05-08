@@ -7,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 // USER & AUTHENTICATION
 
 model User {
@@ -93,9 +92,7 @@ model Subscription {
   @@index([stripeSubscriptionId])
 }
 
-
 // RESUME ANALYSIS
-
 model Analysis {
   id     String @id @default(auto()) @map("_id") @db.ObjectId
   userId String @db.ObjectId
@@ -183,9 +180,8 @@ enum SuggestionCategory {
   ATS_COMPATIBILITY
 }
 
-// ============================================
+
 // COVER LETTER
-// ============================================
 
 model CoverLetter {
   id     String @id @default(auto()) @map("_id") @db.ObjectId
@@ -201,7 +197,7 @@ model CoverLetter {
   length  CoverLetterLength @default(MEDIUM)
 
   // Metadata
-  generatedBy String @default("claude-3.5-sonnet") // AI model used
+  generatedBy String @default("groq-3.5-sonnet") // AI model used
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

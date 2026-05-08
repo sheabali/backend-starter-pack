@@ -159,7 +159,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"analysisId\": \"PASTE_ANALYSIS_ID_HERE\"\n}"
+              "raw": "{\n  \"analysisId\": \"PASTE_ANALYSIS_ID_HERE\",\n  \"jobDescription\": \"PASTE_JOB_DESCRIPTION_HERE\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/resume/analyze",

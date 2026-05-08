@@ -7,9 +7,9 @@ import logger from "./utils/logger/logger";
 // Initialize app
 const app: Application = express();
 
-// Cors Options
+// Cors OPTIONS
 const corsOptions = {
-  origin: "",
+  origin: "*",
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   allowedHeaders: [
     "Content-Type",
@@ -30,6 +30,15 @@ const corsOptions = {
 
 // Middlewares
 app.use(cors(corsOptions));
+
+// Stripe webhook must come before express.json() to get raw body for signature verification
+import { PaymentController } from "./app/modules/Payment/payment.controller";
+app.post(
+  "/api/v1/payment/webhook",
+  express.raw({ type: "application/json" }),
+  PaymentController.handleWebhook
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
@@ -49,14 +58,14 @@ app.use(
       time < 100
         ? "VERY FAST"
         : time < 200
-        ? "FAST"
-        : time < 500
-        ? "NORMAL"
-        : time < 1000
-        ? "SLOW"
-        : time < 5000
-        ? "VERY_SLOW"
-        : "CRITICAL";
+          ? "FAST"
+          : time < 500
+            ? "NORMAL"
+            : time < 1000
+              ? "SLOW"
+              : time < 5000
+                ? "VERY_SLOW"
+                : "CRITICAL";
 
     // Skip logging for streaming requests to reduce noise
     if (!req.path.includes("/stream/")) {

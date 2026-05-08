@@ -32,13 +32,13 @@ const uploadAndParseResume = catchAsync(async (req: Request, res: Response) => {
 
 const analyzeResume = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id;
-  const { analysisId } = req.body;
+  const { analysisId, jobDescription } = req.body;
 
   if (!analysisId) {
     throw new ApiError(httpStatus.BAD_REQUEST, "analysisId is required");
   }
 
-  const result = await ResumeService.analyzeResume(analysisId, userId);
+  const result = await ResumeService.analyzeResume(analysisId, userId, jobDescription);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -48,7 +48,41 @@ const analyzeResume = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAnalysis = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id;
+  const { analysisId } = req.params;
+
+  const result = await ResumeService.getAnalysis(analysisId as string, userId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Analysis retrieved successfully",
+    data: result,
+  });
+});
+
+const generateCoverLetter = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user.id;
+  const { analysisId } = req.body;
+
+  if (!analysisId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "analysisId is required");
+  }
+
+  const result = await ResumeService.generateCoverLetter(analysisId, userId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Cover letter generated successfully",
+    data: result,
+  });
+});
+
 export const ResumeController = {
   uploadAndParseResume,
   analyzeResume,
+  getAnalysis,
+  generateCoverLetter,
 };

@@ -1,2 +1,0 @@
-{"level":"info","message":"Request processed - VERY_SLOW: 3603.82ms - POST /api/v1/resume/analyze","method":"POST","responseTime":"3603.82ms","service":"default-service-name","statusCode":200,"timeCategory":"VERY_SLOW","timestamp":"2026-05-01 16:40:37","url":"/api/v1/resume/analyze"}
-{"alert":"SLOW_RESPONSE","level":"warn","message":"Performance concern: POST /api/v1/resume/analyze","responseTime":"3603.82ms","service":"default-service-name","statusCode":200,"timestamp":"2026-05-01 16:40:37"}

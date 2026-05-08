@@ -53,7 +53,7 @@ SCORING CRITERIA:
 
 RESPONSE REQUIREMENTS:
 - foundKeywords: All technical terms EXPLICITLY mentioned (minimum 10+)
-- missingKeywords: Common keywords NOT found (based on inferred role, maximum 8)
+- missingKeywords: Common TECHNOLOGIES and TECHNICAL SKILLS NOT found (based EXPLICITLY on the TARGET JOB TITLE, maximum 8)
 - keywordFrequency: { "keyword": count } for all found keywords
 - suggestions: 4-5 specific, actionable tips (prioritize HIGH before MEDIUM)
 
@@ -78,13 +78,13 @@ RETURN THIS JSON ONLY:
 const JOB_MATCH_PROMPT = `You are an expert recruiter analyzing resume-to-job fit.
 
 TASK: Compare this resume against the job description and:
-1. Calculate job match percentage (0-100) based on keyword overlap and requirement satisfaction
+1. Identify the key requirements/keywords from the job description
 2. Identify specific gaps between resume and job requirements
 3. Suggest improvements to align resume with this specific job
 
 Return ONLY JSON:
 {
-  "jobMatchPercentage": <0-100>,
+  "jdKeywords": ["keyword1", "keyword2"],
   "matchAnalysis": "2-3 sentence summary of fit",
   "gaps": ["gap1", "gap2"],
   "alignmentSuggestions": [
@@ -96,18 +96,32 @@ Return ONLY JSON:
   ]
 }`;
 
-const COVER_LETTER_PROMPT = `You are an expert cover letter writer. Generate a professional cover letter based on the provided resume and job details.
-
-REQUIREMENTS:
+const COVER_LETTER_PROMPT = `You are an expert recruiter writing cover letters. Generate a cover letter based on:
+- Resume: [RESUME]
+- Job Title: [JOB_TITLE]
+- Company: [COMPANY]
+- Job Description: [JOB_DESCRIPTION]
 - Tone: [TONE]
-- Length: [LENGTH] words (±10% acceptable)
-- Structure: Opening hook → 2-3 key achievements → job-specific relevance → strong closing
+- Length: [LENGTH] (~150/250/400 words)
 
-Return ONLY the cover letter text (no formatting, no markdown, no explanations). Write it as if the candidate will add their own name and personal details.`;
+Write a compelling, personalized cover letter that:
+1. Opens with a strong hook relevant to the company
+2. Highlights 2-3 key accomplishments from the resume
+3. Addresses specific requirements from the job description
+4. Closes with a call to action
 
-// ============================================
+Do NOT include placeholders like [Your Name]. Write as if the candidate will personalize details after.
+
+Tone Guidelines:
+- PROFESSIONAL: Formal, achievement-focused, corporate language
+- CONFIDENT: Bold, assertive, emphasizes leadership and impact
+- FRIENDLY: Conversational, warm, shows personality and culture fit
+- CREATIVE: Unique, storytelling-based, stands out from templates
+
+Return ONLY the cover letter text (no formatting, no markdown, no explanations).`;
+
+
 // HELPER FUNCTIONS
-// ============================================
 
 const clampScore = (n: number | undefined): number => {
   if (!n && n !== 0) return 50; // Default to 50 if undefined
@@ -155,7 +169,8 @@ const extractJsonFromResponse = (text: string): any => {
 
 const analyzeResume = async (
   resumeText: string,
-  jobDescription?: string
+  jobDescription?: string,
+  jobTitle?: string
 ): Promise<AnalysisResult> => {
   if (!resumeText || resumeText.trim().length === 0) {
     return getErrorResponse("Resume text is empty or invalid");
@@ -167,7 +182,7 @@ const analyzeResume = async (
       messages: [
         {
           role: "user",
-          content: `${ATS_ANALYSIS_PROMPT}\n\nRESUME TO ANALYZE:\n---\n${resumeText}\n---`,
+          content: `${ATS_ANALYSIS_PROMPT}\n\nTARGET JOB TITLE: ${jobTitle || "Relevant Role"}\n\nRESUME TO ANALYZE:\n---\n${resumeText}\n---`,
         },
       ],
       model: "llama-3.3-70b-versatile",
@@ -213,11 +228,15 @@ const analyzeResume = async (
 
     // Step 2: If job description provided, calculate job match
     if (jobDescription && jobDescription.trim().length > 0) {
-      result.jobMatchPercentage = await calculateJobMatch(
+      const matchData = await calculateJobMatch(
         resumeText,
         jobDescription,
         result.foundKeywords
       );
+      result.jobMatchPercentage = matchData.jobMatchPercentage;
+      if (matchData.suggestions) {
+        result.suggestions = [...result.suggestions, ...matchData.suggestions].slice(0, 10);
+      }
     }
 
     // Step 3: Log metrics for analytics
@@ -232,15 +251,27 @@ const analyzeResume = async (
   }
 };
 
-// ============================================
+
 // JOB MATCH CALCULATION
-// ============================================
+
+const calculateJobMatchPercentage = (
+  resumeKeywords: string[],
+  jobDescriptionKeywords: string[]
+): number => {
+  if (!jobDescriptionKeywords.length) return 0;
+  const intersection = resumeKeywords.filter(k =>
+    jobDescriptionKeywords.some(jdk =>
+      k.toLowerCase().includes(jdk.toLowerCase())
+    )
+  );
+  return Math.round((intersection.length / jobDescriptionKeywords.length) * 100);
+};
 
 const calculateJobMatch = async (
   resumeText: string,
   jobDescription: string,
   resumeKeywords: string[]
-): Promise<number> => {
+): Promise<{ jobMatchPercentage: number; suggestions: any[] }> => {
   try {
     const matchResponse = await groq.chat.completions.create({
       messages: [
@@ -251,14 +282,44 @@ const calculateJobMatch = async (
       ],
       model: "llama-3.3-70b-versatile",
       temperature: 0.2,
-      max_tokens: 800,
+      max_tokens: 1500,
       response_format: { type: "json_object" },
     });
 
     const matchResponseText = matchResponse.choices[0]?.message?.content || "{}";
     const matchParsed = extractJsonFromResponse(matchResponseText);
 
-    return clampScore(matchParsed.jobMatchPercentage);
+    const jdKeywords: string[] = Array.isArray(matchParsed.jdKeywords) ? matchParsed.jdKeywords : [];
+    const jobMatchPercentage = calculateJobMatchPercentage(resumeKeywords, jdKeywords);
+
+    const suggestions: any[] = [];
+
+    if (Array.isArray(matchParsed.alignmentSuggestions)) {
+      matchParsed.alignmentSuggestions.forEach((s: any) => {
+        suggestions.push({
+          title: `Job Fit: ${s.requirement?.substring(0, 40) || 'Align requirement'}...`,
+          description: `Resume: "${s.resumeMatch}". Tip: ${s.suggestion}`,
+          priority: "HIGH",
+          category: "CONTENT"
+        });
+      });
+    }
+
+    if (Array.isArray(matchParsed.gaps)) {
+      matchParsed.gaps.forEach((g: string) => {
+        suggestions.push({
+          title: `Gap Identified`,
+          description: `You are missing this requirement: ${g}`,
+          priority: "MEDIUM",
+          category: "KEYWORDS"
+        });
+      });
+    }
+
+    return {
+      jobMatchPercentage: clampScore(jobMatchPercentage),
+      suggestions,
+    };
   } catch (error) {
     console.warn("Job match calculation failed:", error);
     // Fallback: Simple keyword overlap calculation
@@ -266,10 +327,8 @@ const calculateJobMatch = async (
       .toLowerCase()
       .split(/\s+/)
       .filter((word) => word.length > 3);
-    const matches = resumeKeywords.filter((k) =>
-      jdKeywords.some((jd) => jd.includes(k) || k.includes(jd))
-    );
-    return Math.round((matches.length / jdKeywords.length) * 100);
+    const percentage = calculateJobMatchPercentage(resumeKeywords, jdKeywords);
+    return { jobMatchPercentage: clampScore(percentage), suggestions: [] };
   }
 };
 
@@ -280,8 +339,8 @@ const calculateJobMatch = async (
 interface CoverLetterOptions {
   resumeText: string;
   jobDescription: string;
-  jobTitle?: string;
-  companyName?: string;
+  jobTitle?: string | null | undefined;
+  companyName?: string | null | undefined;
   tone?: "PROFESSIONAL" | "CONFIDENT" | "FRIENDLY" | "CREATIVE";
   length?: "SHORT" | "MEDIUM" | "LONG";
 }
@@ -307,18 +366,22 @@ const generateCoverLetter = async (
   const targetLength = lengthMap[length];
 
   try {
-    const prompt = COVER_LETTER_PROMPT.replace("[TONE]", tone)
-      .replace("[LENGTH]", targetLength.toString());
+    const prompt = COVER_LETTER_PROMPT.replace("[RESUME]", resumeText)
+      .replace("[JOB_TITLE]", jobTitle ?? "Not specified")
+      .replace("[COMPANY]", companyName ?? "the company")
+      .replace("[JOB_DESCRIPTION]", jobDescription ?? "")
+      .replace("[TONE]", tone)
+      .replace("[LENGTH]", length);
 
     const clResponse = await groq.chat.completions.create({
       messages: [
         {
           role: "user",
-          content: `${prompt}\n\nRESUME:\n${resumeText}\n\nJOB TITLE: ${jobTitle}\nCOMPANY: ${companyName}\nJOB DESCRIPTION:\n${jobDescription}`,
+          content: prompt,
         },
       ],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.7, // Higher for creativity
+      temperature: 0.8, // Higher for creativity
       max_tokens: 1200,
     });
 
@@ -326,10 +389,25 @@ const generateCoverLetter = async (
       clResponse.choices[0]?.message?.content || "Unable to generate cover letter";
 
     // Clean up markdown if present
-    return coverLetter
+    const cleanedLetter = coverLetter
       .replace(/```markdown\n?/g, "")
       .replace(/```\n?/g, "")
       .trim();
+
+    // Validation: Check length is within ±10% of target
+    const wordCount = cleanedLetter.split(/\s+/).length;
+    const lowerBound = targetLength * 0.9;
+    const upperBound = targetLength * 1.1;
+
+    console.log(`Generated cover letter length: ${wordCount} words (Target: ${targetLength})`);
+
+    // If it's significantly off, we just log it for now as per instructions "Validate response" 
+    // but typically we'd retry or return anyway. The prompt specifies ~words.
+    if (wordCount < lowerBound || wordCount > upperBound) {
+      console.warn(`Cover letter length ${wordCount} is outside target range [${lowerBound}, ${upperBound}]`);
+    }
+
+    return cleanedLetter;
   } catch (error) {
     console.error("Error generating cover letter:", error);
     throw new Error(

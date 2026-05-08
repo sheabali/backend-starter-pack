@@ -23,5 +23,11 @@ export default {
   emailSender: {
     email: process.env.EMAIL_SENDER_EMAIL || "",
     app_pass: process.env.EMAIL_SENDER_APP_PASS || "",
-  }
+  },
+  stripe: {
+    secret_key: process.env.STRIPE_SECRET_KEY || "",
+    public_key: process.env.STRIPE_PUBLIC_KEY || "",
+    webhook_secret: process.env.STRIPE_WEBHOOK_SECRET || "",
+  },
+  frontend_url: process.env.FRONTEND_URL || "http://localhost:3000",
 };

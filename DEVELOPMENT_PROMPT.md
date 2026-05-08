@@ -4,7 +4,7 @@ You are an expert full-stack developer building "CareerAI" - an AI-powered resum
 - **Frontend:** Next.js 14+ with TypeScript, Tailwind CSS, shadcn/ui components
 - **Backend:** Node.js + Express with TypeScript
 - **Database:** MongoDB with Prisma ORM
-- **AI:** Claude API (Anthropic) for resume analysis and cover letter generation
+- **AI:** groq API (Anthropic) for resume analysis and cover letter generation
 - **Payment:** Stripe
 - **Storage:** Supabase (for resume PDFs)
 - **Auth:** JWT with refresh tokens
@@ -61,15 +61,15 @@ You are an expert full-stack developer building "CareerAI" - an AI-powered resum
 
 ---
 
-### STEP 2: Claude API ATS Scoring (Days 1-2)
-**Objective:** Generate ATS score, keyword analysis, and improvement suggestions using Claude API
+### STEP 2: groq API ATS Scoring (Days 1-2)
+**Objective:** Generate ATS score, keyword analysis, and improvement suggestions using groq API
 
 **Tasks:**
 1. Create src/services/ai.service.ts
    - Initialize Anthropic client with API key from .env
    - Create function: analyzeResume(resumeText: string): Promise<AnalysisResult>
    
-2. Design Claude prompt for ATS analysis
+2. Design groq prompt for ATS analysis
 ```
 You are an expert ATS (Applicant Tracking System) consultant. Analyze the following resume and provide:
 
@@ -93,8 +93,8 @@ Return ONLY valid JSON with structure:
 }
 ```
 
-3. Call Claude API
-   - Model: claude-3-5-sonnet
+3. Call groq API
+   - Model: groq-3-5-sonnet
    - Max tokens: 1000
    - Temperature: 0.7
    - Pass resumeText to prompt
@@ -102,12 +102,12 @@ Return ONLY valid JSON with structure:
 4. Parse JSON response
    - Validate all required fields present
    - Ensure scores are 0-100
-   - Handle Claude parsing errors gracefully
+   - Handle groq parsing errors gracefully
    
 5. Save Analysis record
    - Update existing Analysis with: atsScore, formattingScore, keywordScore, keywordFrequency, suggestions
    - Create KeywordAnalysis record with: foundKeywords, missingKeywords, keywordFrequency
-   - Save Suggestion records (one per suggestion from Claude)
+   - Save Suggestion records (one per suggestion from groq)
    
 6. Create POST /api/resume/analyze endpoint
    - Input: analysisId (from STEP 1)
@@ -115,13 +115,13 @@ Return ONLY valid JSON with structure:
    - Return full Analysis object with keywords + suggestions
 
 **Cost Optimization:**
-- Claude API free tier: $5 credit
+- groq API free tier: $5 credit
 - Each analysis: ~200-300 tokens
 - First 100 free analyses on free tier credit
 - After: charge users ($2 per report or $5/month Pro)
 
 **Error Handling:**
-- Claude API errors → 500 with retry logic
+- groq API errors → 500 with retry logic
 - JSON parsing errors → Log error, return generic response
 - Invalid analysis data → Return partial results with what succeeded
 
@@ -136,7 +136,7 @@ Return ONLY valid JSON with structure:
 2. Create job description parser
    - Extract keywords from JD text
    - Calculate keyword overlap with resume
-   - Use Claude to contextualize the match
+   - Use groq to contextualize the match
    
 3. Implement match scoring algorithm
 ```typescript
@@ -153,8 +153,8 @@ function calculateJobMatch(
 }
 ```
 
-4. Use Claude for qualitative match analysis
-   - Ask Claude to compare resume content against JD requirements
+4. Use groq for qualitative match analysis
+   - Ask groq to compare resume content against JD requirements
    - Generate match explanation + gap analysis
    
 5. Save job match data
@@ -253,7 +253,7 @@ function calculateJobMatch(
    - Get: resumeText, jobTitle, targetCompany, jobDescription
    - Validate analysis belongs to user
    
-3. Design Claude prompt for cover letter
+3. Design groq prompt for cover letter
 ```
 You are an expert recruiter writing cover letters. Generate a cover letter based on:
 - Resume: [resumeText]
@@ -272,8 +272,8 @@ Write a compelling, personalized cover letter that:
 Do NOT include placeholders like [Your Name]. Write as if the candidate will personalize details after.
 ```
 
-4. Call Claude API
-   - Model: claude-3-5-sonnet
+4. Call groq API
+   - Model: groq-3-5-sonnet
    - Max tokens: 800
    - Temperature: 0.8 (more creative)
    
@@ -282,7 +282,7 @@ Do NOT include placeholders like [Your Name]. Write as if the candidate will per
    - Ensure it reads naturally (not robotic)
    
 6. Save CoverLetter record
-   - Fields: userId, analysisId, content, tone, length, generatedBy ("claude-3-5-sonnet"), createdAt
+   - Fields: userId, analysisId, content, tone, length, generatedBy ("groq-3-5-sonnet"), createdAt
    
 7. Response: Return cover letter content
 
@@ -516,7 +516,7 @@ if (user.plan === "FREE" && monthlyAnalysisCount >= 3) {
    - Connect GitHub repo
    - Set environment variables:
      * DATABASE_URL (MongoDB Atlas)
-     * CLAUDE_API_KEY
+     * groq_API_KEY
      * STRIPE_SECRET_KEY
      * JWT_SECRET
      * NODE_ENV=production
@@ -581,7 +581,7 @@ if (user.plan === "FREE" && monthlyAnalysisCount >= 3) {
 7. **Post-Launch Improvements**
    - Monitor error logs
    - Fix bugs immediately
-   - Optimize Claude prompts based on user feedback
+   - Optimize groq prompts based on user feedback
    - Add features users request (e.g., freelancer profile analyzer)
    
 8. **Optional: Create Landing Page Variants**
@@ -593,7 +593,7 @@ if (user.plan === "FREE" && monthlyAnalysisCount >= 3) {
 
 ## Key Implementation Notes
 
-### Claude API Integration
+### groq API Integration
 - Cost: Free tier = $5 credit (enough for ~100 analyses)
 - Each analysis: 200-300 tokens input, 300-500 output = ~0.01 per request
 - Switch to paid ($1 per 1M input tokens) after free tier exhausted
@@ -630,7 +630,7 @@ if (user.plan === "FREE" && monthlyAnalysisCount >= 3) {
 - CORS: Only allow requests from your frontend domain
 
 ### Performance Optimizations
-- Cache Claude responses? No - each resume is unique, caching not useful
+- Cache groq responses? No - each resume is unique, caching not useful
 - Cache dashboard stats: 5 minute TTL
 - Optimize PDF parsing: Pre-process large files
 - Lazy load UI components on frontend
@@ -640,7 +640,7 @@ if (user.plan === "FREE" && monthlyAnalysisCount >= 3) {
 - "File too large" → "Please upload a PDF under 10MB"
 - "Invalid JWT" → "Session expired, please log in again"
 - "Rate limit exceeded" → "You've used all 3 free analyses this month. Upgrade to Pro for unlimited."
-- "Claude API error" → "Analysis failed. Please try again in a few moments."
+- "groq API error" → "Analysis failed. Please try again in a few moments."
 
 ---
 
@@ -650,7 +650,7 @@ Before launching:
 - [ ] All endpoints tested with Postman/cURL
 - [ ] Frontend components tested in browser
 - [ ] File upload tested with real PDFs
-- [ ] Claude prompts tested and refined
+- [ ] groq prompts tested and refined
 - [ ] Stripe test payments working
 - [ ] MongoDB Atlas production DB created
 - [ ] Environment variables set (backend + frontend)

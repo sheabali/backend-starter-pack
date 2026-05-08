@@ -1,2 +1,0 @@
-{"level":"info","message":"Request processed - CRITICAL: 10604.26ms - POST /api/v1/resume/analyze","method":"POST","responseTime":"10604.26ms","service":"default-service-name","statusCode":500,"timeCategory":"CRITICAL","timestamp":"2026-05-01 16:34:40","url":"/api/v1/resume/analyze"}
-{"alert":"SLOW_RESPONSE","level":"warn","message":"Performance concern: POST /api/v1/resume/analyze","responseTime":"10604.26ms","service":"default-service-name","statusCode":500,"timestamp":"2026-05-01 16:34:40"}
