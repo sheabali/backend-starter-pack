@@ -31,13 +31,13 @@ const corsOptions = {
 // Middlewares
 app.use(cors(corsOptions));
 
-// Stripe webhook must come before express.json() to get raw body for signature verification
-import { PaymentController } from "./app/modules/Payment/payment.controller";
-app.post(
-  "/api/v1/payment/webhook",
-  express.raw({ type: "application/json" }),
-  PaymentController.handleWebhook
-);
+// Stripe webhook (uncomment once Payment module is created)
+// import { PaymentController } from "./app/modules/Payment/payment.controller";
+// app.post(
+//   "/api/v1/payment/webhook",
+//   express.raw({ type: "application/json" }),
+//   PaymentController.handleWebhook
+// );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

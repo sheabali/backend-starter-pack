@@ -16,7 +16,7 @@ model User {
   passwordHash String
 
   // Authentication
-  emailVerified        DateTime? // Email verification timestamp
+  emailVerified        DateTime? // Email verification timestamp 
   verificationToken    String? // For email verification
   passwordResetToken   String? // For password reset
   passwordResetExpires DateTime? // Password reset token expiry
@@ -179,7 +179,6 @@ enum SuggestionCategory {
   CONTENT
   ATS_COMPATIBILITY
 }
-
 
 // COVER LETTER
 
