@@ -1,401 +1,270 @@
+// Gym Management System - v1 schema (MongoDB + Prisma)
+// Conventions:
+//  - All money is stored as integers in paisa (1 BDT = 100 paisa). Never floats.
+//  - All timestamps are UTC. Display in Asia/Dhaka on the frontend.
+//  - MongoDB has no real foreign keys: Prisma emulates relations, so
+//    integrity rules (e.g. "no booking without an active subscription")
+//    are enforced in the API layer, and uniqueness by indexes below.
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "mongodb"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // must be a replica set (Atlas default) for transactions
 }
 
-// USER & AUTHENTICATION
+// ---------- Enums ----------
 
-model User {
-  id           String  @id @default(auto()) @map("_id") @db.ObjectId
-  email        String  @unique
-  name         String?
-  passwordHash String
-
-  // Authentication
-  emailVerified        DateTime? // Email verification timestamp 
-  verificationToken    String? // For email verification
-  passwordResetToken   String? // For password reset
-  passwordResetExpires DateTime? // Password reset token expiry
-  role                 UserRole  @default(USER)
-
-  // Plan & subscription
-  plan               Plan                @default(FREE) // FREE, PRO, PAY_PER_REPORT
-  subscriptionId     String?
-  stripeCustomerId   String?
-  subscriptionStatus SubscriptionStatus? @default(ACTIVE) // ACTIVE, CANCELLED, EXPIRED
-
-  subscriptionExpiresAt DateTime?
-
-  // Usage tracking
-  analysisCount       Int      @default(0) // Total analyses done
-  analysisLastResetAt DateTime @default(now()) // For monthly free tier reset
-  creditsRemaining    Int      @default(3) // For free tier
-
-  // Profile
-  profileCompleted  Boolean @default(false)
-  profilePictureUrl String?
-
-  // Metadata
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  lastLoginAt DateTime?
-
-  // Relations
-  analyses      Analysis[]
-  subscriptions Subscription[]
-  coverLetters  CoverLetter[]
-  activityLogs  ActivityLog[]
-
-  @@index([stripeCustomerId])
-}
-
-enum Plan {
-  FREE
-  PRO
-  PAY_PER_REPORT
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELLED
-  EXPIRED
-  PAST_DUE
-}
-
-enum UserRole {
-  USER
+enum Role {
+  MEMBER
+  TRAINER
   ADMIN
 }
 
-model Subscription {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  stripeSubscriptionId String?
-  stripeCustomerId     String?
-  planType             Plan
-
-  status             SubscriptionStatus
-  currentPeriodStart DateTime?
-  currentPeriodEnd   DateTime?
-  cancelledAt        DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([stripeSubscriptionId])
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
 }
 
-// RESUME ANALYSIS
-model Analysis {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Resume data
-  resumeFileName String
-  resumeUrl      String // Supabase Storage URL
-  resumeText     String // Extracted text from PDF
-
-  // Job info
-  jobTitle       String?
-  targetCompany  String?
-  jobDescription String? // Pasted JD for match score
-
-  // Scores
-  atsScore           Int // 0-100
-  formattingScore    Int // 0-100
-  keywordScore       Int // 0-100
-  jobMatchPercentage Int? // 0-100, if JD provided
-
-  // Analysis data
-  keywords          KeywordAnalysis @relation(fields: [keywordAnalysisId], references: [id])
-  keywordAnalysisId String          @db.ObjectId
-
-  suggestions Suggestion[] // Array of improvement tips
-
-  // Generated content
-  coverLetters CoverLetter[]
-
-  // Metadata
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([createdAt])
-}
-
-model KeywordAnalysis {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-
-  // Found keywords
-  foundKeywords String[] // ["React", "TypeScript", ...]
-  foundCount    Int
-
-  // Missing keywords
-  missingKeywords String[] // ["Docker", "Kubernetes", ...]
-  missingCount    Int
-
-  // Keyword frequency
-  keywordFrequency Json // { "React": 5, "TypeScript": 3, ... }
-
-  // Relations
-  analyses Analysis[]
-
-  createdAt DateTime @default(now())
-}
-
-model Suggestion {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  analysisId String   @db.ObjectId
-  analysis   Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
-
-  title       String // "Add Docker and Kubernetes keywords"
-  description String // Full suggestion text
-  priority    Priority           @default(MEDIUM) // HIGH, MEDIUM, LOW
-  category    SuggestionCategory
-
-  createdAt DateTime @default(now())
-
-  @@index([analysisId])
-}
-
-enum Priority {
-  HIGH
-  MEDIUM
-  LOW
-}
-
-enum SuggestionCategory {
-  KEYWORDS
-  FORMATTING
-  STRUCTURE
-  CONTENT
-  ATS_COMPATIBILITY
-}
-
-// COVER LETTER
-
-model CoverLetter {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  analysisId String   @db.ObjectId
-  analysis   Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
-
-  // Cover letter content
-  content String // Full generated cover letter
-  tone    Tone              @default(PROFESSIONAL) // PROFESSIONAL, CONFIDENT, FRIENDLY
-  length  CoverLetterLength @default(MEDIUM)
-
-  // Metadata
-  generatedBy String @default("groq-3.5-sonnet") // AI model used
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([analysisId])
-}
-
-enum Tone {
-  PROFESSIONAL
-  CONFIDENT
-  FRIENDLY
-  CREATIVE
-}
-
-enum CoverLetterLength {
-  SHORT // ~150 words
-  MEDIUM // ~250 words
-  LONG // ~400 words
-}
-
-// ============================================
-// FREELANCER PROFILE (NICHE FEATURE)
-// ============================================
-
-model FreelancerProfile {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-
-  // Profile info
-  platform    Platform // UPWORK, FIVERR, FREELANCER
-  profileUrl  String
-  profileText String // Bio/description
-
-  // Metrics
-  hourlyRate    Float?
-  totalEarnings Float?
-  responseRate  Float?
-  successScore  Float?
-
-  // Analysis
-  remoteReadyScore Int // 0-100: how ready for remote jobs
-  suggestions      String[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-enum Platform {
-  UPWORK
-  FIVERR
-  FREELANCER
-  TOPTAL
-  GURU
-}
-
-// ============================================
-// ACTIVITY LOG (ANALYTICS)
-// ============================================
-
-model ActivityLog {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  userId String @db.ObjectId
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  action      ActivityAction
-  description String?
-  metadata    Json? // { resumeId: "...", atsScore: 87, ... }
-
-  ipAddress String?
-  userAgent String?
-
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([action])
-  @@index([createdAt])
-}
-
-enum ActivityAction {
-  RESUME_UPLOADED
-  RESUME_ANALYZED
-  SCORE_RECEIVED
-  COVER_LETTER_GENERATED
-  COVER_LETTER_COPIED
-  USER_UPGRADED
-  USER_DOWNGRADED
-  ACCOUNT_CREATED
-  LOGIN
-  LOGOUT
-  PROFILE_UPDATED
-  PAYMENT_PROCESSED
-  EXPORT_REPORT
-}
-
-// ============================================
-// PAYMENT & BILLING
-// ============================================
-
-model Payment {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-
-  // Payment info
-  stripePaymentId String  @unique
-  stripeInvoiceId String?
-
-  amount        Float // In USD
-  currency      String        @default("USD")
-  status        PaymentStatus
-  paymentMethod String? // card, bank_transfer, etc
-
-  // Description
-  description String? // "Pro Plan - Monthly" or "Single Report"
-  planType    Plan
-
-  // Customer
-  customerEmail String
-
-  // Dates
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  paidAt    DateTime?
-
-  @@index([customerEmail])
+enum SubscriptionStatus {
+  PENDING // created, awaiting payment
+  ACTIVE
+  EXPIRED
+  CANCELLED
 }
 
 enum PaymentStatus {
   PENDING
-  COMPLETED
+  SUCCESS
   FAILED
-  REFUNDED
   CANCELLED
+  REFUNDED
 }
 
-// ============================================
-// FEATURE FLAGS & CONFIG
-// ============================================
-
-model FeatureFlag {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-
-  name        String  @unique // "enable_freelancer_analyzer", "ai_model_v2"
-  description String?
-  enabled     Boolean @default(false)
-
-  // Rollout
-  rolloutPercentage Int @default(0) // 0-100: % of users who see this
-
-  // Config
-  config Json? // Any additional config
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  ALL_LEVELS
 }
 
-// ============================================
-// FEEDBACK & SUPPORT
-// ============================================
-
-model Feedback {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-
-  email    String
-  name     String?
-  message  String
-  rating   Int? // 1-5 stars
-  category FeedbackCategory
-
-  resolved Boolean @default(false)
-  response String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum SessionStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
 }
 
-enum FeedbackCategory {
-  BUG
-  FEATURE_REQUEST
-  IMPROVEMENT
-  GENERAL_FEEDBACK
-  SUPPORT
+enum BookingStatus {
+  BOOKED
+  CANCELLED
+  ATTENDED
+  NO_SHOW
 }
 
-// ============================================
-// AUDIT LOG (FOR ADMIN)
-// ============================================
+enum ContactStatus {
+  NEW
+  REPLIED
+  CLOSED
+}
 
-model AuditLog {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
+// ---------- Embedded types (MongoDB-native, no separate collection) ----------
 
-  action     String // "user_created", "payment_processed", etc
-  entityType String // "User", "Payment", "Analysis"
-  entityId   String?
+type EmergencyContact {
+  name     String
+  phone    String
+  relation String?
+}
 
-  changes     Json? // { before: {...}, after: {...} }
-  performedBy String? // Admin user ID
+// ---------- Users ----------
 
-  createdAt DateTime @default(now())
+model User {
+  id              String            @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  email           String            @unique
+  phone           String            @unique
+  passwordHash    String
+  role            Role              @default(MEMBER)
+  status          UserStatus        @default(ACTIVE)
+  photoUrl        String?
+  emailVerifiedAt DateTime?
+  emergencyContact EmergencyContact?
+  trialUsed       Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
-  @@index([action])
-  @@index([entityType])
-  @@index([createdAt])
+  trainerProfile  TrainerProfile?
+  subscriptions   Subscription[]
+  payments        Payment[]
+  bookings        Booking[]
+  sessionsTaught  ClassSession[]    @relation("TrainerSessions")
+
+  @@index([role, status])
+}
+
+model TrainerProfile {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @unique @db.ObjectId
+  user           User     @relation(fields: [userId], references: [id])
+  bio            String?
+  specialties    String[]
+  certifications String[]
+  photoUrl       String?
+  isPublic       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+}
+
+// ---------- Memberships and payments ----------
+
+model MembershipPlan {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  slug         String         @unique
+  description  String?
+  price        Int // paisa
+  durationDays Int
+  features     String[]
+  isActive     Boolean        @default(true)
+  isFeatured   Boolean        @default(false)
+  sortOrder    Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id        String             @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String             @db.ObjectId
+  user      User               @relation(fields: [userId], references: [id])
+  planId    String             @db.ObjectId
+  plan      MembershipPlan     @relation(fields: [planId], references: [id])
+
+  // Snapshots: later plan edits must never change past purchases
+  planName  String
+  pricePaid Int // paisa
+
+  status    SubscriptionStatus @default(PENDING)
+  startDate DateTime? // set on activation
+  endDate   DateTime? // set on activation
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  payments  Payment[]
+
+  @@index([userId, status])
+  @@index([status, endDate]) // for the expiry job
+}
+
+model Payment {
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  subscriptionId String        @db.ObjectId
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id])
+  userId         String        @db.ObjectId
+  user           User          @relation(fields: [userId], references: [id])
+
+  tranId         String        @unique // our own transaction id sent to SSLCommerz; unique = no double credit
+  amount         Int // paisa
+  currency       String        @default("BDT")
+  status         PaymentStatus @default(PENDING)
+  method         String? // card / bKash / etc., as reported by the gateway
+  valId          String? // gateway validation id
+  bankTranId     String?
+  gatewayResponse Json? // raw gateway payload, kept for audits and disputes
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+// ---------- Classes and bookings ----------
+
+model ClassType {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  slug            String         @unique
+  description     String?
+  imageUrl        String?
+  difficulty      Difficulty     @default(ALL_LEVELS)
+  durationMinutes Int
+  isActive        Boolean        @default(true)
+
+  sessions        ClassSession[]
+}
+
+model ClassSession {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  classTypeId String        @db.ObjectId
+  classType   ClassType     @relation(fields: [classTypeId], references: [id])
+  trainerId   String        @db.ObjectId
+  trainer     User          @relation("TrainerSessions", fields: [trainerId], references: [id])
+
+  startsAt    DateTime
+  endsAt      DateTime
+  capacity    Int
+  bookedCount Int           @default(0) // updated atomically at booking time
+  room        String?
+  status      SessionStatus @default(SCHEDULED)
+
+  bookings    Booking[]
+
+  @@index([startsAt])
+  @@index([trainerId, startsAt])
+}
+
+model Booking {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId   String        @db.ObjectId
+  session     ClassSession  @relation(fields: [sessionId], references: [id])
+  userId      String        @db.ObjectId
+  user        User          @relation(fields: [userId], references: [id])
+
+  status      BookingStatus @default(BOOKED)
+  bookedAt    DateTime      @default(now())
+  cancelledAt DateTime?
+
+  // One row per member per session. Re-booking after a cancellation
+  // reuses this row (status back to BOOKED) instead of inserting a new one.
+  @@unique([sessionId, userId])
+  @@index([userId, status])
+}
+
+// ---------- Contact and website content ----------
+
+model ContactMessage {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  phone     String?
+  email     String?
+  message   String
+  status    ContactStatus @default(NEW)
+  createdAt DateTime      @default(now())
+}
+
+model FaqItem {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  question    String
+  answer      String
+  sortOrder   Int     @default(0)
+  isPublished Boolean @default(true)
+}
+
+model GalleryImage {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  url       String
+  caption   String?
+  category  String?
+  sortOrder Int     @default(0)
+}
+
+model Announcement {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  body        String
+  isActive    Boolean   @default(true)
+  publishedAt DateTime  @default(now())
+  expiresAt   DateTime?
 }
